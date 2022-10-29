@@ -1,12 +1,10 @@
 const mongoose = require('mongoose');
+const NotFoundError = require('../exception/notFoundError.exception');
 const Schema = mongoose.Schema;
 
 const HomeSchema = new Schema(
     {
-        creatorId: {
-            type: Number,
-            required: true,
-        },
+        creatorId: { type: Number, required: true },
         name: {
             type: String,
             required: true,
@@ -21,10 +19,7 @@ const HomeSchema = new Schema(
             required: true,
             trim: true,
         },
-        price: {
-            type: Number,
-            required: true,
-        },
+        price: { type: Number, required: true },
         description: {
             type: [
                 {
@@ -34,23 +29,15 @@ const HomeSchema = new Schema(
             ],
             default: [],
         },
-        area: {
-            type: Number,
-            required: true,
-        },
+        area: { type: Number, required: true },
         image: {
             type: [String],
             required: true,
             default: [],
         },
-        deletedAt: {
-            type: Date,
-            default: null,
-        },
-        deleted: {
-            type: Boolean,
-            default: false,
-        },
+        deletedAt: { type: Date, default: null },
+        deleted: { type: Boolean, default: false },
+        isSold: { type: Boolean, default: false },
     },
     {
         timestamps: true,
@@ -74,44 +61,51 @@ HomeSchema.statics.getHomes = async function (page, pageSize) {
         .sort({ createdAt: -1 });
 };
 
-HomeSchema.statics.getByName = async function (name) {
-    return await this.find({ name, deleted: false }).select(select);
-};
-
-HomeSchema.statics.getByAddress = async function (address) {
-    X;
-    return await this.find({ address, deleted: false }).select(select);
-};
-
-HomeSchema.statics.getByPrice = async function (price) {
-    return await this.find({ price, deleted: false }).select(select);
-};
-
-HomeSchema.statics.getByDescription = async function (description) {
-    return await this.find({ description, deleted: false }).select(select);
-};
-
 HomeSchema.statics.getById = async function (_id) {
-    return await this.findOne({ _id, deleted: false }).select(select);
+    const data = await this.findOne({ _id, deleted: false }).select(select);
+    if (!data) {
+        return new NotFoundError('home');
+    }
+    return { home: data, error: false };
+};
+
+HomeSchema.statics.getByIdAndCreatorId = async function (_id, creatorId) {
+    const data = await this.findOne({ _id, creatorId, deleted: false }).select(select);
+    if (!data) {
+        return new NotFoundError('home');
+    }
+    return { home: data, error: false };
 };
 
 HomeSchema.statics.getByCreatorId = async function (creatorId) {
     return await this.find({ creatorId, deleted: false }).select(select);
 };
 
-HomeSchema.statics.deleteHomeById = async function (_id) {
-    return await this.findOneAndUpdate({ _id }, { deleted: true, deletedAt: Date.now() });
+HomeSchema.statics.deleteHomeById = async function (_id, creatorId) {
+    const deleteHome = await this.findOneAndUpdate(
+        { _id, creatorId },
+        { deleted: true, deletedAt: Date.now() },
+    );
+
+    if (!deleteHome) {
+        return new NotFoundError(`home with id ${_id}`);
+    }
+
+    return deleteHome;
 };
 
-HomeSchema.statics.updateHomeById = async function (_id, home) {
-    const data = await this.findOneAndUpdate(
-        { _id, deleted: false },
+HomeSchema.statics.updateHomeById = async function (_id, home, creatorId) {
+    const updateHome = await this.findOneAndUpdate(
+        { _id, creatorId, deleted: false },
         { $set: home },
         {
             new: true,
         },
     );
-    return data;
+    if (!updateHome) {
+        return new NotFoundError('home');
+    }
+    return updateHome;
 };
 
 HomeSchema.statics.searchHomes = async function (home, page, pageSize) {
@@ -137,7 +131,7 @@ HomeSchema.statics.searchHomes = async function (home, page, pageSize) {
 
     if (address) {
         const { province, district } = address;
-        
+
         if (province) {
             params['address.province'] = { $regex: province, $options: 'i' };
         }

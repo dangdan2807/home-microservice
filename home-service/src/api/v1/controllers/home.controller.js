@@ -105,7 +105,10 @@ class HomeController {
     // [POST] /api/product
     createHome = async (req, res) => {
         try {
-            const { home, error, message, statusCode } = await homeService.createHome(req.body);
+            const { home, error, message, statusCode } = await homeService.createHome(
+                req.body,
+                req.userId,
+            );
             if (error) {
                 return res.status(statusCode).json({
                     success: false,
@@ -130,9 +133,10 @@ class HomeController {
     // [DELETE] /api/product/:homeId
     deleteHomeById = async (req, res) => {
         const { homeId } = req.params;
+        const { userId } = req;
 
         try {
-            const { home, error, message, statusCode } = await homeService.deleteHomeById(homeId);
+            const { home, error, message, statusCode } = await homeService.deleteHomeById(homeId, userId);
             if (error) {
                 return res.status(statusCode).json({
                     success: false,
@@ -162,6 +166,7 @@ class HomeController {
             const { home, error, message, statusCode } = await homeService.updateHomeById(
                 homeId,
                 req.body,
+                req.userId,
             );
             if (error) {
                 return res.status(statusCode).json({

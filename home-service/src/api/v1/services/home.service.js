@@ -1,8 +1,8 @@
 const Home = require('../models/home.model');
 const homeValidate = require('../validate/home.validate');
 
-const NotFoundError = require('../exception/NotFoundError');
-const MyError = require('../exception/MyError');
+const NotFoundError = require('../exception/notFoundError.exception');
+const MyError = require('../exception/myError.exception');
 
 class HomeService {
     getListHome = async (page, pageSize) => {
@@ -33,13 +33,14 @@ class HomeService {
         if (checkPage.error) {
             return checkPage;
         }
-        
+
         // console.log(checkHomeResult.home);
         const homes = await Home.searchHomes(checkHomeResult.home);
         return { homes, error: false };
     };
 
-    createHome = async (home) => {
+    createHome = async (home, creatorId) => {
+        home.creatorId = creatorId;
         const { error, statusCode, message } = homeValidate.validateHome(home);
         if (error) {
             return {
@@ -57,20 +58,24 @@ class HomeService {
         };
     };
 
-    deleteHomeById = async (homeId) => {
-        const home = await Home.getById(homeId);
-        if (!home) {
-            return new NotFoundError(`home with id ${homeId}`);
+    deleteHomeById = async (homeId, creatorId) => {
+        const validateResult = homeValidate.validateCreatorId(creatorId);
+        if (validateResult.error) {
+            return validateResult;
         }
 
-        await Home.deleteHomeById(homeId);
+        const home = await Home.deleteHomeById(homeId);
+        if (home.error) {
+            return new MyError(`you can't delete home with id ${homeId}`);
+        }
+
         return {
-            home,
+            ...home,
             error: false,
         };
     };
 
-    updateHomeById = async (homeId, home) => {
+    updateHomeById = async (homeId, home, creatorId) => {
         const { error, statusCode, message } = homeValidate.validateHome(home);
         if (error) {
             return {
@@ -80,7 +85,11 @@ class HomeService {
             };
         }
 
-        const homeUpdate = await Home.updateHomeById(homeId, home);
+        const homeUpdate = await Home.updateHomeById(homeId, home, creatorId);
+        if (homeUpdate.error) {
+            return new MyError(`you can't update home with id ${homeId}`);
+        }
+
         return {
             home: homeUpdate,
             error: false,

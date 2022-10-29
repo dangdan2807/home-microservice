@@ -1,6 +1,6 @@
 const Home = require('../models/home.model');
 const commonUtil = require('../utils/common.util');
-const MyError = require('../exception/MyError');
+const MyError = require('../exception/myError.exception');
 
 const MESSAGE_INVALID = 'không hợp lệ';
 const NAME_REGEX = /\w{1,255}/;
@@ -28,21 +28,21 @@ class HomeValidate {
         }
 
         if (!price || !commonUtil.isNumber(price)) {
-            error.price = `giá phải là số, `;
+            error.price = `giá phải là số`;
             if (price < 0) {
                 error.price += `giá phải lớn hơn 0`;
             }
         }
 
         if (!area || !commonUtil.isNumber(area)) {
-            error.area = `diện tích phải là số, `;
+            error.area = `diện tích phải là số`;
             if (area < 0) {
-                error.area += `diện tích phải lớn hơn 0, `;
+                error.area += `diện tích phải lớn hơn 0`;
             }
         }
 
         if (!creatorId || !commonUtil.isNumber(creatorId)) {
-            error.creatorId = `mã người dùng phải là số, `;
+            error.creatorId = `mã người dùng phải là số`;
         }
 
         // nếu như có lỗi
@@ -68,7 +68,7 @@ class HomeValidate {
         }
 
         if (!priceMore || !commonUtil.isNumber(priceMore)) {
-            error.price = `giá phải là số, `;
+            error.price = `giá phải là số`;
             if (priceMore < 0) {
                 error.price += `giá phải lớn hơn 0`;
             }
@@ -77,7 +77,7 @@ class HomeValidate {
         }
 
         if (!priceLess || !commonUtil.isNumber(priceLess)) {
-            error.price = `giá phải là số, `;
+            error.price = `giá phải là số`;
             if (priceLess < 0) {
                 error.price += `giá phải lớn hơn 0`;
             }
@@ -120,7 +120,7 @@ class HomeValidate {
         }
 
         if (areaMore > areaLess) {
-            error.areaMore = `areaMore phải nhỏ hơn areaLess, `;
+            error.areaMore = `areaMore phải nhỏ hơn areaLess`;
         }
 
         return {
@@ -142,6 +142,16 @@ class HomeValidate {
             error: false,
         };
     };
+
+    validateCreatorId = (creatorId) => {
+        if (!creatorId || !commonUtil.isNumber(creatorId)) {
+            return new MyError(`Mã người dùng ${MESSAGE_INVALID}`);
+        }
+        
+        return {
+            error: false,
+        };
+    }
 }
 
 module.exports = new HomeValidate();
