@@ -1,14 +1,19 @@
-const Home = require('../models/home.model');
-const commonUtil = require('../utils/common.util');
+const cloudinary = require('../../../utils/cloudinary.util');
+const commonUtil = require('../../../utils/common.util');
+
 const MyError = require('../exception/myError.exception');
+const Home = require('../models/home.model');
 
 const MESSAGE_INVALID = 'không hợp lệ';
+const IMG_INVALID = 'không đúng định dạng url';
 const NAME_REGEX = /\w{1,255}/;
+const URL_REGEX = /^[a-z0-9-]+$/;
 
 class HomeValidate {
     validateHome = (home) => {
-        const { name, address, price, area, creatorId } = home;
-        const { street, province, district } = address;
+        const { name, street, province, district, price, area, creatorId } =
+            home;
+
         let error = {};
 
         if (!name || !NAME_REGEX.test(name)) {
@@ -30,24 +35,24 @@ class HomeValidate {
         if (!price || !commonUtil.isNumber(price)) {
             error.price = `giá phải là số`;
             if (price < 0) {
-                error.price += `giá phải lớn hơn 0`;
+                error.price = `giá phải lớn hơn 0`;
             }
         }
 
         if (!area || !commonUtil.isNumber(area)) {
             error.area = `diện tích phải là số`;
             if (area < 0) {
-                error.area += `diện tích phải lớn hơn 0`;
+                error.area = `diện tích phải lớn hơn 0`;
             }
         }
 
         if (!creatorId || !commonUtil.isNumber(creatorId)) {
-            error.creatorId = `mã người dùng phải là số`;
+            error.creatorId = `id người dùng phải là số nguyên dương`;
         }
 
         // nếu như có lỗi
         if (!commonUtil.isEmpty(error)) {
-            return new MyError(error);
+            throw new MyError(error);
         }
 
         return {
@@ -56,7 +61,15 @@ class HomeValidate {
     };
 
     validateSearchHome = (home) => {
-        const { name, areaMore, areaLess, province, district, priceMore, priceLess } = home;
+        const {
+            name,
+            areaMore,
+            areaLess,
+            province,
+            district,
+            priceMore,
+            priceLess,
+        } = home;
 
         let returnResult = {};
         let error = {};
@@ -129,13 +142,19 @@ class HomeValidate {
         };
     };
 
-    validatePage = (page, pageSize) => {
-        if (!page || !commonUtil.isNumber(page)) {
-            return new MyError(`Trang ${MESSAGE_INVALID}`);
+    validatePage = function (page, pageSize) {
+        if (!commonUtil.isNumber(page) || page < 0) {
+            throw new MyError(`Trang ${MESSAGE_INVALID}`);
         }
 
-        if (!pageSize || !commonUtil.isNumber(pageSize)) {
-            return new MyError(`Số lượng ${MESSAGE_INVALID}`);
+        if (!commonUtil.isNumber(pageSize) || pageSize < 0) {
+            throw new MyError(`Số lượng trang ${MESSAGE_INVALID}`);
+        }
+    };
+
+    validateCreatorId = (creatorId) => {
+        if (!creatorId || !commonUtil.isNumber(creatorId)) {
+            throw new MyError(`Mã người dùng ${MESSAGE_INVALID}`);
         }
 
         return {
@@ -143,15 +162,52 @@ class HomeValidate {
         };
     };
 
-    validateCreatorId = (creatorId) => {
-        if (!creatorId || !commonUtil.isNumber(creatorId)) {
-            return new MyError(`Mã người dùng ${MESSAGE_INVALID}`);
+    uploadImage = async (images) => {
+        let imageUrls = [];
+        if (images) {
+            for (let i = 1; i <= 5; i++) {
+                const image = images['image' + i];
+                if (image) {
+                    let result = await cloudinary.addFile(image[0].path);
+                    imageUrls.push(result.secure_url);
+                }
+            }
         }
-        
-        return {
-            error: false,
-        };
-    }
+
+        return imageUrls;
+    };
+
+    deleteOldImage = async (homeId, newImages) => {
+        const oldImages = await Home.findOne({ _id: homeId }).image;
+        const currentImage = [];
+        if (oldImages) {
+            for (let i = 0; i < oldImages.length; i++) {
+                const oldImage = oldImages[i];
+                if (!newImages.includes(oldImage)) {
+                    await cloudinary.removeFiles(oldImage);
+                } else {
+                    currentImage.push(oldImage);
+                }
+            }
+        }
+        return { newImages: currentImage };
+    };
+
+    // validateImg = (images) => {
+    //     if (!images) {
+    //         throw new MyError(`Hình ảnh không được để trống`);
+    //     }
+
+    //     images.forEach((element) => {
+    //         if (!element || URL_REGEX.test(element)) {
+    //             throw new MyError(`Ảnh ${MESSAGE_INVALID} hoặc ${IMG_INVALID}`);
+    //         }
+    //     });
+
+    //     return {
+    //         error: false,
+    //     };
+    // };
 }
 
 module.exports = new HomeValidate();

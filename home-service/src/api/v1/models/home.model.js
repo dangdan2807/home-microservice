@@ -21,13 +21,8 @@ const HomeSchema = new Schema(
         },
         price: { type: Number, required: true },
         description: {
-            type: [
-                {
-                    K: { type: String, required: true, trim: true },
-                    V: { type: String, required: true, trim: true },
-                },
-            ],
-            default: [],
+            type: String,
+            default: '',
         },
         area: { type: Number, required: true },
         image: {
@@ -48,31 +43,33 @@ HomeSchema.index({ name: 'text' });
 HomeSchema.index({ 'address.street': 'text' });
 HomeSchema.index({ 'address.province': 'text' });
 HomeSchema.index({ 'address.district': 'text' });
-HomeSchema.index({ 'description.K': 'text' });
+HomeSchema.index({ description: 'text' });
 HomeSchema.index({ price: 1 });
 
 const select = '-__v -address._id -description._id';
 
-HomeSchema.statics.getHomes = async function (page, pageSize) {
+HomeSchema.statics.getHomes = async function (skip, limit) {
     return await this.find({ deleted: false })
         .select(select)
-        .limit(pageSize)
-        .skip(pageSize * (page - 1))
+        .limit(limit)
+        .skip(skip)
         .sort({ createdAt: -1 });
 };
 
 HomeSchema.statics.getById = async function (_id) {
     const data = await this.findOne({ _id, deleted: false }).select(select);
     if (!data) {
-        return new NotFoundError('home');
+        throw new NotFoundError('home');
     }
     return { home: data, error: false };
 };
 
 HomeSchema.statics.getByIdAndCreatorId = async function (_id, creatorId) {
-    const data = await this.findOne({ _id, creatorId, deleted: false }).select(select);
+    const data = await this.findOne({ _id, creatorId, deleted: false }).select(
+        select,
+    );
     if (!data) {
-        return new NotFoundError('home');
+        throw new NotFoundError('home');
     }
     return { home: data, error: false };
 };
@@ -88,10 +85,8 @@ HomeSchema.statics.deleteHomeById = async function (_id, creatorId) {
     );
 
     if (!deleteHome) {
-        return new NotFoundError(`home with id ${_id}`);
+        throw new NotFoundError(`home with id ${_id}`);
     }
-
-    return deleteHome;
 };
 
 HomeSchema.statics.updateHomeById = async function (_id, home, creatorId) {
@@ -103,12 +98,12 @@ HomeSchema.statics.updateHomeById = async function (_id, home, creatorId) {
         },
     );
     if (!updateHome) {
-        return new NotFoundError('home');
+        throw new NotFoundError('home');
     }
     return updateHome;
 };
 
-HomeSchema.statics.searchHomes = async function (home, page, pageSize) {
+HomeSchema.statics.searchHomes = async function (home, skip = 0, limit = 0) {
     const { name, areaMore, areaLess, address, priceMore, priceLess } = home;
     let params = {
         deleted: false,
@@ -152,8 +147,8 @@ HomeSchema.statics.searchHomes = async function (home, page, pageSize) {
 
     const data = await this.find(params)
         .select(select)
-        .limit(pageSize)
-        .skip(pageSize * (page - 1))
+        .limit(limit)
+        .skip(skip)
         .sort({ createdAt: -1 });
     return data;
 };

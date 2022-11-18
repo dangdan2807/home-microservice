@@ -1,24 +1,29 @@
 const Home = require('../models/home.model');
+
 const homeValidate = require('../validate/home.validate');
 
-const NotFoundError = require('../exception/notFoundError.exception');
-const MyError = require('../exception/myError.exception');
+const commonUtils = require('../../../utils/common.util');
 
 class HomeService {
     getListHome = async (page, pageSize) => {
-        const checkPage = homeValidate.validatePage(page, pageSize);
+        homeValidate.validatePage(page, pageSize);
 
-        if (checkPage.error) {
-            return checkPage;
-        }
+        const totalHomes = await Home.countDocuments();
 
-        const homes = await Home.getHomes(page, pageSize);
-        return { error: false, homes };
+        const { skip, limit, totalPages } = commonUtils.getPagination(
+            parseInt(page) || page,
+            parseInt(pageSize) || pageSize,
+            totalHomes,
+        );
+
+        const homes = await Home.getHomes(skip, limit);
+
+        return { homes, totalPages };
     };
 
     getHomeById = async (homeId) => {
-        const home = await Home.getById(homeId);
-        return home;
+        const result = await Home.getById(homeId);
+        return { error: result.error, home: result.home };
     };
 
     getHomesByCreatorId = async (creatorId) => {
@@ -28,28 +33,31 @@ class HomeService {
 
     searchHomes = async (home, page, pageSize) => {
         const checkHomeResult = homeValidate.validateSearchHome(home);
-        const checkPage = homeValidate.validatePage(page, pageSize);
+        await homeValidate.validatePage(page, pageSize);
 
-        if (checkPage.error) {
-            return checkPage;
-        }
+        const totalHomes = await Home.countDocuments(checkHomeResult.home);
+
+        const { skip, limit, totalPages } = commonUtils.getPagination(
+            page,
+            pageSize,
+            totalHomes,
+        );
 
         // console.log(checkHomeResult.home);
-        const homes = await Home.searchHomes(checkHomeResult.home);
-        return { homes, error: false };
+        const homes = await Home.searchHomes(checkHomeResult.home, skip, limit);
+        return { error: false, homes, totalPages };
     };
 
     createHome = async (home, creatorId) => {
         home.creatorId = creatorId;
-        const { error, statusCode, message } = homeValidate.validateHome(home);
-        if (error) {
-            return {
-                error,
-                statusCode,
-                message,
-            };
-        }
+        await homeValidate.validateHome(home);
+        homeValidate.uploadImage(home.image);
 
+        home.address = {
+            street: home.street,
+            province: home.province,
+            district: home.district,
+        };
         const newHome = new Home(home);
         await newHome.save();
         return {
@@ -58,41 +66,78 @@ class HomeService {
         };
     };
 
-    deleteHomeById = async (homeId, creatorId) => {
-        const validateResult = homeValidate.validateCreatorId(creatorId);
-        if (validateResult.error) {
-            return validateResult;
-        }
+    createHomeImage = async (home, creatorId, images) => {
+        home.creatorId = creatorId;
+        await homeValidate.validateHome(home);
 
-        const home = await Home.deleteHomeById(homeId);
-        if (home.error) {
-            return new MyError(`you can't delete home with id ${homeId}`);
-        }
+        const uploadImages = await homeValidate.uploadImage(images);
+        home.image = uploadImages;
+
+        home.address = {
+            street: home.street,
+            province: home.province,
+            district: home.district,
+        };
+
+        const newHome = new Home(home);
+        await newHome.save();
 
         return {
-            ...home,
-            error: false,
+            errors: false,
+            home: newHome,
         };
     };
 
+    deleteHomeById = async (homeId, creatorId) => {
+        await homeValidate.validateCreatorId(creatorId);
+
+        await Home.deleteHomeById(homeId, creatorId);
+    };
+
     updateHomeById = async (homeId, home, creatorId) => {
-        const { error, statusCode, message } = homeValidate.validateHome(home);
-        if (error) {
-            return {
-                error,
-                statusCode,
-                message,
-            };
-        }
+        home.creatorId = creatorId;
+        await homeValidate.validateHome(home);
+        const { newImages } = await homeValidate.deleteOldImage(
+            homeId,
+            home.image,
+        );
+        home.image = newImages;
+
+        home.address = {
+            street: home.street,
+            province: home.province,
+            district: home.district,
+        };
 
         const homeUpdate = await Home.updateHomeById(homeId, home, creatorId);
-        if (homeUpdate.error) {
-            return new MyError(`you can't update home with id ${homeId}`);
-        }
 
         return {
             home: homeUpdate,
-            error: false,
+        };
+    };
+
+    updateHomeByIdWithImage = async (homeId, home, creatorId, images) => {
+        home.creatorId = creatorId;
+        await homeValidate.validateHome(home);
+        const { newImages } = await homeValidate.deleteOldImage(
+            homeId,
+            home.image,
+        );
+        home.image = newImages;
+
+        const uploadImages = await homeValidate.uploadImage(images);
+        home.image = [...home.image, ...uploadImages];
+
+        home.address = {
+            street: home.street,
+            province: home.province,
+            district: home.district,
+        };
+
+        const homeUpdate = await Home.updateHomeById(homeId, home, creatorId);
+
+        return {
+            home: homeUpdate,
         };
     };
 }

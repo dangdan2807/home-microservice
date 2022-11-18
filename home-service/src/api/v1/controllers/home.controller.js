@@ -1,36 +1,29 @@
-const Home = require('../models/home.model');
 const homeService = require('../services/home.service');
 
 class HomeController {
     // [GET] /api/product?page=1&pageSize=10
-    getListHome = async (req, res) => {
-        const page = req.query.page || 1;
-        const pageSize = req.query.pageSize || 10;
+    async getListHome (req, res, next) {
+        const { page = 0, pageSize = 10 } = req.query;
         try {
-            const { homes, error, message, statusCode } = await homeService.getListHome(
+            const { homes, totalPages } = await homeService.getListHome(
                 page,
                 pageSize,
             );
 
-            if (error) {
-                return res.status(statusCode).json({ success: false, message });
-            }
-
-            return res.status(200).json({
+            res.status(200).json({
                 success: true,
                 homes,
+                page: parseInt(page) || page,
+                pageSize: parseInt(pageSize) || pageSize,
+                totalPages,
             });
-        } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+        } catch (err) {
+            next(err);
         }
     };
 
     // [GET] /api/product/:homeId
-    getHomeById = async (req, res) => {
+    getHomeById = async (req, res, next) => {
         const { homeId } = req.params;
 
         try {
@@ -38,19 +31,15 @@ class HomeController {
 
             res.status(200).json({
                 success: true,
-                home,
+                home: home.home,
             });
         } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+            next(error);
         }
     };
 
     // [GET] /api/product/creator/:creatorId
-    getHomesByCreatorId = async (req, res) => {
+    getHomesByCreatorId = async (req, res, next) => {
         const { creatorId } = req.params;
 
         try {
@@ -61,37 +50,29 @@ class HomeController {
                 homes,
             });
         } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+            next(error);
         }
     };
 
     // [GET] /api/product/search?name=&areaMore=&areaLess=&province=&district=&priceMore=&priceLess=&page=1&pageSize=10
-    searchHomes = async (req, res) => {
+    searchHomes = async (req, res, next) => {
         // const { name, areaMore, areaLess, province, district, priceMore, priceLess } = req.params;
-        const page = req.query.page || 1;
+        const page = req.query.page || 0;
         const pageSize = req.query.pageSize || 10;
 
         try {
-            const { homes, error, message, statusCode } = await homeService.searchHomes(
+            const { homes, totalPages } = await homeService.searchHomes(
                 req.query,
                 page,
                 pageSize,
             );
 
-            if (error) {
-                return res.status(statusCode).json({
-                    success: false,
-                    message,
-                });
-            }
-
             res.status(200).json({
                 success: true,
                 homes,
+                page: parseInt(page) || page,
+                pageSize: parseInt(pageSize) || pageSize,
+                totalPages,
             });
         } catch (err) {
             console.log(err);
@@ -103,18 +84,9 @@ class HomeController {
     };
 
     // [POST] /api/product
-    createHome = async (req, res) => {
+    createHome = async (req, res, next) => {
         try {
-            const { home, error, message, statusCode } = await homeService.createHome(
-                req.body,
-                req.userId,
-            );
-            if (error) {
-                return res.status(statusCode).json({
-                    success: false,
-                    message,
-                });
-            }
+            const { home } = await homeService.createHome(req.body, req.userId);
 
             return res.status(201).json({
                 success: true,
@@ -122,58 +94,37 @@ class HomeController {
                 home,
             });
         } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+            next(error);
         }
     };
 
     // [DELETE] /api/product/:homeId
-    deleteHomeById = async (req, res) => {
+    deleteHomeById = async (req, res, next) => {
         const { homeId } = req.params;
         const { userId } = req;
 
         try {
-            const { home, error, message, statusCode } = await homeService.deleteHomeById(homeId, userId);
-            if (error) {
-                return res.status(statusCode).json({
-                    success: false,
-                    message,
-                });
-            }
+            await homeService.deleteHomeById(homeId, userId);
 
             return res.status(200).json({
                 success: true,
                 message: 'Delete home successfully',
-                home,
             });
         } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+            next(error);
         }
     };
 
     // [PATCH] /api/product/:homeId
-    updateHomeById = async (req, res) => {
+    updateHomeById = async (req, res, next) => {
         const { homeId } = req.params;
 
         try {
-            const { home, error, message, statusCode } = await homeService.updateHomeById(
+            const { home } = await homeService.updateHomeById(
                 homeId,
                 req.body,
                 req.userId,
             );
-            if (error) {
-                return res.status(statusCode).json({
-                    success: false,
-                    message,
-                });
-            }
 
             return res.status(200).json({
                 success: true,
@@ -181,13 +132,49 @@ class HomeController {
                 home,
             });
         } catch (error) {
-            console.log(error);
-            return res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-            });
+            next(error);
         }
     };
+
+    // [POST] /api/product/image
+    createHomeWithImage = async (req, res, next) => {
+        try {
+            // req.userId = 1;
+            const { home } = await homeService.createHomeImage(req.body, req.userId, req.files);
+
+            return res.status(201).json({
+                success: true,
+                message: 'Create home successfully',
+                home,
+            });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    // [PATCH] /api/product/:homeId/image
+    updateHomeByIdWithImage = async (req, res, next) => {
+        const { homeId } = req.params;
+        req.userId = 1;
+
+        try {
+            const { home } = await homeService.updateHomeByIdWithImage(
+                homeId,
+                req.body,
+                req.userId,
+                req.files
+            );
+
+            res.status(200).json({
+                success: true,
+                message: 'Update home successfully',
+                home,
+            });
+        } catch (err) {
+            next(err);
+        }
+    };
+
 }
 
 module.exports = new HomeController();
