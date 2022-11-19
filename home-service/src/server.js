@@ -17,7 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// app.use(morgan('common'));
+app.use(morgan('common'));
 app.use(cors());
 app.use(cookieParser());
 app.use(useragent.express());
@@ -25,14 +25,13 @@ app.use(useragent.express());
 const db = require('./config/db.config');
 db.connect();
 
+const routes = require('./api/v1/routes/index.route');
+routes(app);
+app.use(handleErr);
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`http://localhost:${PORT}`);
 });
-
-const routes = require('./api/v1/routes/index.route');
-routes(app);
-
-app.use(handleErr);
 
 // eurekaConfig.registerWithEureka(PORT);

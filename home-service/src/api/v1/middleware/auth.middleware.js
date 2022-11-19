@@ -15,19 +15,19 @@ class AuthMiddleware {
                     message: 'Không tìm thấy access token',
                 });
             }
-            // const user = await axios.get(`${API_URL}/api/user/info`, {
-            //     headers: {
-            //         Authorization: `Bearer ${token}`,
-            //         'user-agent': source,
-            //     },
-            // });
-            const user = {
-                data: {
-                    data: {
-                        id: 1,
-                    }
-                }
-            } 
+            const user = await axios.get(`${API_URL}/api/user/info`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'user-agent': source,
+                },
+            });
+            // const user = {
+            //     data: {
+            //         data: {
+            //             id: 1,
+            //         }
+            //     }
+            // } 
 
             // if false
             if (
