@@ -46,14 +46,15 @@ HomeSchema.index({ 'address.district': 'text' });
 HomeSchema.index({ description: 'text' });
 HomeSchema.index({ price: 1 });
 
-const select = '-__v -address._id -description._id';
+const select = '-__v -address._id';
 
 HomeSchema.statics.getHomes = async function (skip, limit) {
-    return await this.find({ deleted: false })
+    const data = await this.find({ deleted: false })
         .select(select)
         .limit(limit)
         .skip(skip)
         .sort({ createdAt: -1 });
+    return data;
 };
 
 HomeSchema.statics.getById = async function (_id) {

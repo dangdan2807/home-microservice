@@ -1,8 +1,12 @@
 const Home = require('../models/home.model');
 
+const redisDb = require('../../../config/redis.config');
+
 const homeValidate = require('../validate/home.validate');
 
 const commonUtils = require('../../../utils/common.util');
+
+const HOME_NAME_REDIS = 'homes';
 
 class HomeService {
     getListHome = async (page, pageSize) => {
@@ -16,14 +20,43 @@ class HomeService {
             totalHomes,
         );
 
-        const homes = await Home.getHomes(skip, limit);
+        const isExistsCached = await redisDb.get(HOME_NAME_REDIS);
+        let homes = [];
+        if (!isExistsCached || isExistsCached.length === 0) {
+            const homesResult = await Home.getHomes(skip, limit);
+            homes = homesResult;
+
+            const saveHomeIds = [];
+            homesResult.forEach((home) =>
+                saveHomeIds.push(home._id.toString()),
+            );
+
+            // Set cache
+            await redisDb.set(HOME_NAME_REDIS, saveHomeIds);
+            homesResult.forEach(
+                async (home) => await redisDb.set(home._id.toString(), home),
+            );
+        } else {
+            for (let item of isExistsCached) {
+                const home = await redisDb.get(item);
+                homes.push(home);
+            }
+        }
+
+        // const homes = await Home.getHomes(skip, limit);
 
         return { homes, totalPages };
     };
 
     getHomeById = async (homeId) => {
-        const result = await Home.getById(homeId);
-        return { error: result.error, home: result.home };
+        let home = await redisDb.get(homeId);
+        if (!home) {
+            const result = await Home.getById(homeId);
+            home = result.home;
+            await redisDb.set(homeId, home);
+        }
+
+        return home;
     };
 
     getHomesByCreatorId = async (creatorId) => {
@@ -59,10 +92,20 @@ class HomeService {
             district: home.district,
         };
         const newHome = new Home(home);
-        await newHome.save();
+        const saveHome = await newHome.save();
+
+        // Update cache
+        const homes = await redisDb.get(HOME_NAME_REDIS);
+        homes.push(saveHome._id.toString());
+
+        await Promise.all([
+            redisDb.set(saveHome._id.toString(), saveHome),
+            redisDb.set(HOME_NAME_REDIS, homes),
+        ]);
+
         return {
             errors: false,
-            home: newHome,
+            home: saveHome,
         };
     };
 
@@ -80,7 +123,16 @@ class HomeService {
         };
 
         const newHome = new Home(home);
-        await newHome.save();
+        const saveHome = await newHome.save();
+
+        // Update cache
+        const homes = await redisDb.get(HOME_NAME_REDIS);
+        homes.push(saveHome._id.toString());
+
+        await Promise.all([
+            redisDb.set(saveHome._id.toString(), saveHome),
+            redisDb.set(HOME_NAME_REDIS, homes),
+        ]);
 
         return {
             errors: false,
@@ -92,6 +144,15 @@ class HomeService {
         await homeValidate.validateCreatorId(creatorId);
 
         await Home.deleteHomeById(homeId, creatorId);
+        // Update cache
+        const homes = await redisDb.get(HOME_NAME_REDIS);
+        const index = homes.indexOf(homeId);
+        homes.splice(index, 1);
+        await Promise.all([
+            redisDb.remove(homeId),
+            redisDb.set(HOME_NAME_REDIS, homes),
+        ]);
+
     };
 
     updateHomeById = async (homeId, home, creatorId) => {
@@ -110,6 +171,9 @@ class HomeService {
         };
 
         const homeUpdate = await Home.updateHomeById(homeId, home, creatorId);
+
+        // Update cache
+        await redisDb.set(homeId, homeUpdate);
 
         return {
             home: homeUpdate,
@@ -135,6 +199,9 @@ class HomeService {
         };
 
         const homeUpdate = await Home.updateHomeById(homeId, home, creatorId);
+        
+        // Update cache
+        await redisDb.set(homeId, homeUpdate);
 
         return {
             home: homeUpdate,

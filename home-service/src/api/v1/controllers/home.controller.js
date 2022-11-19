@@ -2,7 +2,7 @@ const homeService = require('../services/home.service');
 
 class HomeController {
     // [GET] /api/product?page=1&pageSize=10
-    async getListHome (req, res, next) {
+    getListHome = async (req, res, next) => {
         const { page = 0, pageSize = 10 } = req.query;
         try {
             const { homes, totalPages } = await homeService.getListHome(
@@ -31,7 +31,7 @@ class HomeController {
 
             res.status(200).json({
                 success: true,
-                home: home.home,
+                home,
             });
         } catch (error) {
             next(error);
@@ -140,7 +140,11 @@ class HomeController {
     createHomeWithImage = async (req, res, next) => {
         try {
             // req.userId = 1;
-            const { home } = await homeService.createHomeImage(req.body, req.userId, req.files);
+            const { home } = await homeService.createHomeImage(
+                req.body,
+                req.userId,
+                req.files,
+            );
 
             return res.status(201).json({
                 success: true,
@@ -162,7 +166,7 @@ class HomeController {
                 homeId,
                 req.body,
                 req.userId,
-                req.files
+                req.files,
             );
 
             res.status(200).json({
@@ -174,7 +178,6 @@ class HomeController {
             next(err);
         }
     };
-
 }
 
 module.exports = new HomeController();
